@@ -111,6 +111,6 @@ func main() {
         id = jsonhandler(w, r, db, id)
     })
 
-    E = http.ListenAndServe(":9001", nil)
+    e = http.ListenAndServe(":9001", nil)
     cherr(e)
 }
