@@ -11,7 +11,7 @@ import (
 	"github.com/boltdb/bolt"
 )
 
-const dbname = ".mblog.db"
+const dbname = ".cannibal.db"
 var bucket = []byte("bucket")
 
 type Post struct {

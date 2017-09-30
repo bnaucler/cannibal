@@ -1,4 +1,3 @@
-
 function printposts(xhr) {
 
     var obj = JSON.parse(xhr.responseText);
@@ -22,7 +21,7 @@ function printposts(xhr) {
     }
 }
 
-function makepost(elem) {
+function post(elem) {
 
     var user = elem.elements["user"].value;
     var message = elem.elements["message"].value;
@@ -40,4 +39,4 @@ function makepost(elem) {
     xhr.send(params);
 }
 
-makepost(document.getElementById('post')); // Init on first page load
+post(document.getElementById('post')); // Init on first page load
