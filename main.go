@@ -3,7 +3,6 @@ package main
 import (
     "fmt"
     "log"
-    "strings"
     "strconv"
     "net/http"
 	"encoding/json"
@@ -12,7 +11,11 @@ import (
 )
 
 const dbname = ".cannibal.db"
-var bucket = []byte("bucket")
+const NUMPOSTS = 6
+
+var pbuc = []byte("pbuc")       // post bucket
+var ubuc = []byte("ubuc")       // user bucket
+var sbuc = []byte("sbuc")       // settings bucket
 
 type Post struct {
     ID          int
@@ -20,15 +23,27 @@ type Post struct {
     Message     string
 }
 
+type User struct {
+    ID          int
+    Username    string
+    Pass        string
+    Email       string
+}
+
+type Settings struct {
+    Nextid      int
+    Nextuser    int
+}
+
 func cherr(e error) {
     if e != nil { log.Fatal(e) }
 }
 
 // Write JSON encoded byte slice to DB
-func wrdb(db *bolt.DB, k int, v []byte) (e error) {
+func wrdb(db *bolt.DB, k int, v []byte, cbuc []byte) (e error) {
 
 	e = db.Update(func(tx *bolt.Tx) error {
-		b, e := tx.CreateBucketIfNotExists(bucket)
+		b, e := tx.CreateBucketIfNotExists(cbuc)
 		if e != nil { return e }
 
 		e = b.Put([]byte(strconv.Itoa(k)), v)
@@ -39,11 +54,11 @@ func wrdb(db *bolt.DB, k int, v []byte) (e error) {
 	return
 }
 
-// Get JSON encoded byte slice from DB
-func rdb(db *bolt.DB, k int) (v []byte, e error) {
+// Return JSON encoded byte slice from DB
+func rdb(db *bolt.DB, k int, cbuc []byte) (v []byte, e error) {
 
 	e = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(bucket)
+		b := tx.Bucket(cbuc)
 		if b == nil { return fmt.Errorf("No bucket!") }
 
 		v = b.Get([]byte(strconv.Itoa(k)))
@@ -52,13 +67,14 @@ func rdb(db *bolt.DB, k int) (v []byte, e error) {
 	return
 }
 
-func getposts(db *bolt.DB, id int) ([]Post) {
+// Return posts with IDs between min and max as struct
+func getposts(db *bolt.DB, min int, max int) ([]Post) {
 
     posts := []Post{}
     post := Post{}
 
-    for i := 0; i < id; i++ {
-        b, e := rdb(db, i)
+    for i := max; i >= min; i-- {
+        b, e := rdb(db, i, pbuc)
         json.Unmarshal(b, &post)
         cherr(e)
         posts = append(posts, post)
@@ -67,32 +83,97 @@ func getposts(db *bolt.DB, id int) ([]Post) {
     return posts
 }
 
-func jsonhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, id int) (int) {
+func getminmax(id int) (min int, max int) {
 
-    path := strings.TrimPrefix(r.URL.Path, "/")
-    if strings.HasSuffix(path, ".ico") { return id }
+    min = id - NUMPOSTS
+    if min < 0 { min = 0 }
+
+    max = id -1
+
+    return
+
+}
+
+// Write post to db
+func wrpost(r *http.Request, db *bolt.DB, id int) (int) {
 
     e := r.ParseForm()
     cherr(e)
 
-    user := r.FormValue("user")
-    message := r.FormValue("message")
+    post := Post{ID: id, User: r.FormValue("user"), Message: r.FormValue("message")}
 
-    if user != "" && message != "" {
-        post := Post{ID: id, User: user, Message: message}
+    if post.User != "" && post.Message != "" {
+
         jsonpost, e := json.Marshal(post)
         if e != nil { return id }
 
-        e = wrdb(db, id, []byte(jsonpost))
+        e = wrdb(db, id, []byte(jsonpost), pbuc)
         cherr(e)
         id++;
     }
 
-    posts := getposts(db, id);
+    return id
+}
+
+// Handle post requests
+func posthandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, id int) (int) {
+
+    id = wrpost(r, db, id)
+
+    min, max := getminmax(id)
+    posts := getposts(db, min, max);
+
     enc := json.NewEncoder(w)
     enc.Encode(posts)
 
     return id
+}
+
+func getuser(db *bolt.DB, login string, maxid int) (User){
+
+    user := User{}
+
+    for i := 0; i < maxid; i++ {
+        b, e := rdb(db, i, ubuc)
+        cherr(e)
+        json.Unmarshal(b, &user)
+        if user.Username == login {
+            return user
+        }
+    }
+
+    return User{}
+}
+
+func validateuser(user User, password string) (bool) {
+
+    if user.Pass == password { return true
+    } else { return false }
+}
+
+// Handle login requests
+func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, maxid int) {
+
+    e := r.ParseForm()
+    cherr(e)
+
+    user := getuser(db, r.FormValue("user"), maxid)
+
+    if user.Username != "" {
+
+        if validateuser(user, r.FormValue("pass")) {
+            user.Pass = ""
+
+        } else {
+            user = User{}
+        }
+
+    } else {
+        user = User{}
+    }
+
+    enc := json.NewEncoder(w)
+    enc.Encode(user)
 }
 
 func main() {
@@ -101,14 +182,29 @@ func main() {
 	cherr(e)
 	defer db.Close()
 
+    // DEBUG
+    user0 := User{ID: 0, Username: "bjenn", Pass: "password1"}
+    wruser, e := json.Marshal(user0)
+    wrdb(db, 0, []byte(wruser), ubuc)
+    user1 := User{ID: 1, Username: "hazel", Pass: "password2"}
+    wruser, e = json.Marshal(user1)
+    wrdb(db, 1, []byte(wruser), ubuc)
+    nextuser := 2;
+    // NODEBUG
+
     id := 0;
 
     // Static content
     http.Handle("/", http.FileServer(http.Dir("static")))
 
-    // Dynamic content
-    http.HandleFunc("/json", func(w http.ResponseWriter, r *http.Request) {
-        id = jsonhandler(w, r, db, id)
+    // Creating / reading posts
+    http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
+        id = posthandler(w, r, db, id)
+    })
+
+    // Login
+    http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+        loginhandler(w, r, db, nextuser)
     })
 
     e = http.ListenAndServe(":9001", nil)

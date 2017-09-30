@@ -6,14 +6,26 @@
 	<link rel="stylesheet" type="text/css" href="default.css">
 </head>
 <body>
+
     <div id="control">
-        <form id="post" onsubmit="post(this)" method="post">
+        <form id="postform" onsubmit="post(this)" method="post">
             <input type="text" name="user" placeholder="Your name"><br>
             <textarea name="message" placeholder="Your message"></textarea><br>
             <input type="submit" id="submitbutton" value="Submit / refresh">
         </form>
     </div>
     <div id="feed"></div>
+
+    <div id="loginbutton" onclick="openlogin()">Log in</div>
+
+    <div id="login">
+        <form id="loginform" onsubmit="login(this)" method="post">
+            <input type="text" name="user" class="username" placeholder="Username"><br>
+            <input type="password" class="pass" name="pass" placeholder="Password"><br>
+            <input type="submit" id="submitbutton" value="Submit">
+        </form>
+    </div
+
 </body>
-<script type="text/javascript" src="js/form.js"></script>
+<script type="text/javascript" src="js/cannibal.js"></script>
 </html>
