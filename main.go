@@ -163,7 +163,6 @@ func getuser(db *bolt.DB, login string, maxid int) (User) {
         b, e := rdb(db, i, ubuc)
         cherr(e)
         json.Unmarshal(b, &user)
-        fmt.Printf("DEBUG checking user: %+v\n", user)
         if user.Username == login {
             return user
         }
@@ -198,8 +197,6 @@ func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings 
 
     user := getuser(db, r.FormValue("user"), settings.Nextuser)
 
-    fmt.Printf("DEBUG login 1: %+v\n", user)
-
     if user.Username != "" {
 
         if validateuser(user, r.FormValue("pass")) {
@@ -213,8 +210,6 @@ func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings 
     } else {
         user = User{}
     }
-
-    fmt.Printf("DEBUG login 2: %+v\n", user)
 
     enc := json.NewEncoder(w)
     enc.Encode(user)
@@ -252,8 +247,6 @@ func reghandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Se
             settings.Nextuser++
         }
     }
-
-    fmt.Printf("DEBUG reg: %+v\n", user)
 
     enc := json.NewEncoder(w)
     enc.Encode(user)
