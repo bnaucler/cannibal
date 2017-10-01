@@ -1,6 +1,5 @@
 
-if(!sessionStorage.loggedin) { sessionStorage.loggedin = false; }
-if(!sessionStorage.username) { sessionStorage.username = ""; }
+if(!sessionStorage.cannibalname) { sessionStorage.cannibalname = ""; }
 
 checklogin();
 
@@ -29,60 +28,27 @@ function printposts(xhr) {
     }
 }
 
-function post(elem) {
-
-    var user = elem.elements["user"].value;
-    var message = elem.elements["message"].value;
+function mkxhr(dest, params, rfunc) {
 
     var xhr = new XMLHttpRequest();
-    var params = "user=" + user + "&message=" + message;
 
-    xhr.open("POST", "/post", true);
+    xhr.open("POST", dest, true);
     xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 
     xhr.onreadystatechange = function() {
-        if(xhr.readyState == 4 && xhr.status == 200) printposts(xhr);
+        if(xhr.readyState == 4 && xhr.status == 200) rfunc(xhr);
     }
 
     xhr.send(params);
 }
 
-function trylogin(xhr) {
+function post(elem) {
 
-    showloginpage(false);
+    var user = sessionStorage.getItem("cannibalname");
+    var message = elem.elements["message"].value;
 
-    var feed = document.getElementById('feed');
-    var button = document.getElementById('loginbutton');
-    var obj = JSON.parse(xhr.responseText);
-
-    console.log(obj);
-
-    if(obj.Username) {
-        sessionStorage.loggedin = 1;
-        sessionStorage.username = obj.Username;
-    }
-}
-
-function logout() {
-
-    var loginbutton = document.getElementById("loginbutton");
-
-    sessionStorage.loggedin = false;
-    sessionStorage.username = "";
-
-    loginbutton.onclick = openlogin;
-    loginbutton.innerHTML = "Log in";
-}
-
-function checklogin() {
-
-    var username = sessionStorage.getItem("username");
-    var loginbutton = document.getElementById("loginbutton");
-
-    if(username != "") {
-        loginbutton.innerHTML = username;
-        loginbutton.onclick = logout;
-    }
+    var params = "user=" + user + "&message=" + message;
+    mkxhr("/post", params, printposts);
 }
 
 function login(elem) {
@@ -90,31 +56,75 @@ function login(elem) {
     var user = elem.elements["user"].value;
     var pass = elem.elements["pass"].value;
 
-    var xhr = new XMLHttpRequest();
     var params = "user=" + user + "&pass=" + pass;
-
-    console.log(params);
-
-    xhr.open("POST", "/login", true);
-    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-
-    xhr.onreadystatechange = function() {
-        if(xhr.readyState == 4 && xhr.status == 200) trylogin(xhr);
-    }
-
-    xhr.send(params);
+    mkxhr("/login", params, trylogin);
 }
 
-function showloginpage(show) {
+function register(elem) {
+
+    var user = elem.elements["user"].value;
+    var pass = elem.elements["pass"].value;
+    var email = elem.elements["email"].value;
+
+    var params = "user=" + user + "&pass=" + pass + "&email=" + email;
+    mkxhr("/register", params, trylogin);
+}
+
+function trylogin(xhr) {
+
+    showpage("feed");
+
+    var feed = document.getElementById('feed');
+    var button = document.getElementById('loginbutton');
+    var obj = JSON.parse(xhr.responseText);
+
+    if(obj.Username) {
+        sessionStorage.cannibalname = obj.Username;
+    }
+}
+
+function logout() {
+
+    var loginbutton = document.getElementById("loginbutton");
+    var control = document.getElementById("control");
+
+    sessionStorage.cannibalname = "";
+
+    loginbutton.onclick = openlogin;
+    loginbutton.innerHTML = "Log in";
+    control.style.display = "none";
+}
+
+function checklogin() {
+
+    var username = sessionStorage.getItem("cannibalname");
+    var loginbutton = document.getElementById("loginbutton");
+    var control = document.getElementById("control");
+
+    if(username != "") {
+        loginbutton.innerHTML = username;
+        loginbutton.onclick = logout;
+        control.style.display = "block";
+    }
+}
+
+function showpage(show) {
 
     var feed = document.getElementById('feed');
     var control = document.getElementById('control');
+    var register = document.getElementById('register');
     var login = document.getElementById('login');
+    var loginbutton = document.getElementById('loginbutton');
 
-    if(show) {
+    if(show == "login") {
         feed.style.display = "none";
         control.style.display = "none";
         login.style.display = "block";
+
+    } else if(show == "register") {
+        control.style.display = "none";
+        login.style.display = "none";
+        register.style.display = "block";
 
     } else {
         feed.style.display = "block";
@@ -123,13 +133,8 @@ function showloginpage(show) {
     }
 }
 
-function openlogin() {
+function openlogin() { showpage("login"); }
 
-    var feed = document.getElementById('feed');
-    var loggedin = sessionStorage.getItem("loggedin");
-
-    if(loggedin == "false") showloginpage(true);
-    else feed.innerHTML = "you're logged in!"
-}
+function openregister() { showpage("register"); }
 
 post(document.getElementById('postform')); // Init on first page load

@@ -3,8 +3,10 @@ package main
 import (
     "fmt"
     "log"
+    "time"
     "strconv"
     "net/http"
+    "math/rand"
 	"encoding/json"
 
 	"github.com/boltdb/bolt"
@@ -12,6 +14,7 @@ import (
 
 const dbname = ".cannibal.db"
 const NUMPOSTS = 6
+const KEYLEN = 30
 
 var pbuc = []byte("pbuc")       // post bucket
 var ubuc = []byte("ubuc")       // user bucket
@@ -25,6 +28,7 @@ type Post struct {
 
 type User struct {
     ID          int
+    Skey        string // session key
     Username    string
     Pass        string
     Email       string
@@ -67,6 +71,26 @@ func rdb(db *bolt.DB, k int, cbuc []byte) (v []byte, e error) {
 	return
 }
 
+// Get settings from db
+func getsettings(db *bolt.DB) (Settings, error) {
+
+    settings := Settings{}
+    b, e := rdb(db, 0, sbuc)
+    json.Unmarshal(b, &settings)
+
+    return settings, e
+}
+
+// Write settings to db
+func wrsettings(db *bolt.DB, settings Settings) (error) {
+
+    msettings, e := json.Marshal(settings)
+    cherr(e)
+    e = wrdb(db, 0, []byte(msettings), sbuc)
+
+    return e
+}
+
 // Return posts with IDs between min and max as struct
 func getposts(db *bolt.DB, min int, max int) ([]Post) {
 
@@ -95,41 +119,43 @@ func getminmax(id int) (min int, max int) {
 }
 
 // Write post to db
-func wrpost(r *http.Request, db *bolt.DB, id int) (int) {
+func wrpost(r *http.Request, db *bolt.DB, settings Settings) (Settings) {
 
     e := r.ParseForm()
     cherr(e)
 
-    post := Post{ID: id, User: r.FormValue("user"), Message: r.FormValue("message")}
+    post := Post{ID: settings.Nextid, User: r.FormValue("user"), Message: r.FormValue("message")}
 
     if post.User != "" && post.Message != "" {
 
         jsonpost, e := json.Marshal(post)
-        if e != nil { return id }
+        if e != nil { return settings }
 
-        e = wrdb(db, id, []byte(jsonpost), pbuc)
+        e = wrdb(db, settings.Nextid, []byte(jsonpost), pbuc)
         cherr(e)
-        id++;
+        settings.Nextid++;
+        e = wrsettings(db, settings)
+        cherr(e)
     }
 
-    return id
+    return settings
 }
 
 // Handle post requests
-func posthandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, id int) (int) {
+func posthandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Settings) (Settings) {
 
-    id = wrpost(r, db, id)
+    settings = wrpost(r, db, settings)
 
-    min, max := getminmax(id)
+    min, max := getminmax(settings.Nextid)
     posts := getposts(db, min, max);
 
     enc := json.NewEncoder(w)
     enc.Encode(posts)
 
-    return id
+    return settings
 }
 
-func getuser(db *bolt.DB, login string, maxid int) (User){
+func getuser(db *bolt.DB, login string, maxid int) (User) {
 
     user := User{}
 
@@ -137,6 +163,7 @@ func getuser(db *bolt.DB, login string, maxid int) (User){
         b, e := rdb(db, i, ubuc)
         cherr(e)
         json.Unmarshal(b, &user)
+        fmt.Printf("DEBUG checking user: %+v\n", user)
         if user.Username == login {
             return user
         }
@@ -151,18 +178,33 @@ func validateuser(user User, password string) (bool) {
     } else { return false }
 }
 
+// Create random string of length ln
+func randstr(ln int) (string){
+
+    const charset = "0123456789abcdefghijklmnopqrstuvwxyz"
+    var cslen = len(charset)
+
+    b := make([]byte, ln)
+    for i := range b { b[i] = charset[rand.Intn(cslen)] }
+
+    return string(b)
+}
+
 // Handle login requests
-func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, maxid int) {
+func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Settings) {
 
     e := r.ParseForm()
     cherr(e)
 
-    user := getuser(db, r.FormValue("user"), maxid)
+    user := getuser(db, r.FormValue("user"), settings.Nextuser)
+
+    fmt.Printf("DEBUG login 1: %+v\n", user)
 
     if user.Username != "" {
 
         if validateuser(user, r.FormValue("pass")) {
             user.Pass = ""
+            user.Skey = randstr(30) // TODO: Implement
 
         } else {
             user = User{}
@@ -172,41 +214,82 @@ func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, maxid int
         user = User{}
     }
 
+    fmt.Printf("DEBUG login 2: %+v\n", user)
+
     enc := json.NewEncoder(w)
     enc.Encode(user)
 }
 
+// Write user to db
+func wruser(db *bolt.DB, user User) (error) {
+
+    muser, e := json.Marshal(user)
+    cherr(e)
+    e = wrdb(db, user.ID, []byte(muser), ubuc)
+
+    return e
+}
+
+// Handle registration requests
+func reghandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Settings) (Settings) {
+
+    e := r.ParseForm()
+    cherr(e)
+
+    user := User{ID: settings.Nextid,
+                 Username: r.FormValue("user"),
+                 Pass: r.FormValue("pass"),
+                 Email: r.FormValue("email")}
+
+    indb := getuser(db, user.Username, settings.Nextuser)
+
+    if(indb.Username != "") {
+        user = User{}
+
+    } else {
+        e = wruser(db, user)
+        if e == nil {
+            settings.Nextuser++
+        }
+    }
+
+    fmt.Printf("DEBUG reg: %+v\n", user)
+
+    enc := json.NewEncoder(w)
+    enc.Encode(user)
+
+    return settings
+}
+
 func main() {
+
+    rand.Seed(time.Now().UnixNano())
 
 	db, e := bolt.Open(dbname, 0640, nil)
 	cherr(e)
 	defer db.Close()
 
-    // DEBUG
-    user0 := User{ID: 0, Username: "bjenn", Pass: "password1"}
-    wruser, e := json.Marshal(user0)
-    wrdb(db, 0, []byte(wruser), ubuc)
-    user1 := User{ID: 1, Username: "hazel", Pass: "password2"}
-    wruser, e = json.Marshal(user1)
-    wrdb(db, 1, []byte(wruser), ubuc)
-    nextuser := 2;
-    // NODEBUG
-
-    id := 0;
+    settings, e := getsettings(db)
 
     // Static content
     http.Handle("/", http.FileServer(http.Dir("static")))
 
     // Creating / reading posts
     http.HandleFunc("/post", func(w http.ResponseWriter, r *http.Request) {
-        id = posthandler(w, r, db, id)
+        settings = posthandler(w, r, db, settings)
     })
 
     // Login
     http.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
-        loginhandler(w, r, db, nextuser)
+        loginhandler(w, r, db, settings)
     })
 
+    // Register
+    http.HandleFunc("/register", func(w http.ResponseWriter, r *http.Request) {
+        settings = reghandler(w, r, db, settings)
+    })
+
+    // Start server
     e = http.ListenAndServe(":9001", nil)
     cherr(e)
 }

@@ -8,23 +8,32 @@
 <body>
 
     <div id="control">
-        <form id="postform" onsubmit="post(this)" method="post">
-            <input type="text" name="user" placeholder="Your name"><br>
+        <form id="postform" onsubmit="post(this);" method="post">
             <textarea name="message" placeholder="Your message"></textarea><br>
-            <input type="submit" id="submitbutton" value="Submit / refresh">
+            <input type="submit" value="Submit / refresh">
         </form>
     </div>
-    <div id="feed"></div>
+    <div id="feed" class="center"></div>
 
-    <div id="loginbutton" onclick="openlogin()">Log in</div>
+    <div id="loginbutton" onclick="openlogin();">Log in</div>
 
-    <div id="login">
-        <form id="loginform" onsubmit="login(this)" method="post">
-            <input type="text" name="user" class="username" placeholder="Username"><br>
-            <input type="password" class="pass" name="pass" placeholder="Password"><br>
-            <input type="submit" id="submitbutton" value="Submit">
+    <div id="login" class="center">
+        <form id="loginform" onsubmit="login(this);" method="post">
+            <input type="text" name="user" class="bmmargin" placeholder="Username"><br>
+            <input type="password" class="tbmargin" name="pass" placeholder="Password"><br>
+            <input type="submit" class="halfsize" value="Login">
         </form>
-    </div
+        <button id="registerbutton" onclick="openregister();" class="halfsize">Register</button>
+    </div>
+
+    <div id="register" class="center">
+        <form id="registerform" onsubmit="register(this);" method="post">
+            <input type="text" name="user" class="bmmargin" placeholder="Username"><br>
+            <input type="text" name="email" class="bmmargin" placeholder="Email address"><br>
+            <input type="password" class="bmmargin" name="pass" placeholder="Password"><br>
+            <input type="submit" value="Register">
+        </form>
+    </div>
 
 </body>
 <script type="text/javascript" src="js/cannibal.js"></script>
