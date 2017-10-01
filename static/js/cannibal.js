@@ -1,7 +1,7 @@
 
-if(!sessionStorage.cannibalname) { sessionStorage.cannibalname = ""; }
-
+// Init
 checklogin();
+post(document.getElementById('postform'));
 
 function printposts(xhr) {
 
@@ -97,6 +97,8 @@ function logout() {
 
 function checklogin() {
 
+    if(!sessionStorage.cannibalname) { sessionStorage.cannibalname = ""; }
+
     var username = sessionStorage.getItem("cannibalname");
     var loginbutton = document.getElementById("loginbutton");
     var control = document.getElementById("control");
@@ -136,5 +138,3 @@ function showpage(show) {
 function openlogin() { showpage("login"); }
 
 function openregister() { showpage("register"); }
-
-post(document.getElementById('postform')); // Init on first page load
