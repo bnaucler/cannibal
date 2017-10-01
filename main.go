@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 
 	"github.com/boltdb/bolt"
+    "golang.org/x/crypto/bcrypt"
 )
 
 const dbname = ".cannibal.db"
@@ -28,9 +29,9 @@ type Post struct {
 
 type User struct {
     ID          int
-    Skey        string // session key
+    Skey        string
     Username    string
-    Pass        string
+    Pass        []byte
     Email       string
 }
 
@@ -173,7 +174,9 @@ func getuser(db *bolt.DB, login string, maxid int) (User) {
 
 func validateuser(user User, password string) (bool) {
 
-    if user.Pass == password { return true
+    e := bcrypt.CompareHashAndPassword(user.Pass, []byte(password))
+
+    if e == nil { return true
     } else { return false }
 }
 
@@ -200,7 +203,7 @@ func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings 
     if user.Username != "" {
 
         if validateuser(user, r.FormValue("pass")) {
-            user.Pass = ""
+            user.Pass = []byte("hidden")
             user.Skey = randstr(30) // TODO: Implement
 
         } else {
@@ -231,9 +234,11 @@ func reghandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Se
     e := r.ParseForm()
     cherr(e)
 
-    user := User{ID: settings.Nextid,
+    hash, e := bcrypt.GenerateFromPassword([]byte(r.FormValue("pass")), bcrypt.DefaultCost)
+
+    user := User{ID: settings.Nextuser,
                  Username: r.FormValue("user"),
-                 Pass: r.FormValue("pass"),
+                 Pass: hash,
                  Email: r.FormValue("email")}
 
     indb := getuser(db, user.Username, settings.Nextuser)
@@ -243,9 +248,7 @@ func reghandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Se
 
     } else {
         e = wruser(db, user)
-        if e == nil {
-            settings.Nextuser++
-        }
+        if e == nil { settings.Nextuser++ }
     }
 
     enc := json.NewEncoder(w)

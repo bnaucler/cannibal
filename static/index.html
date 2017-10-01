@@ -8,17 +8,17 @@
 <body>
 
     <div id="control">
-        <form id="postform" onsubmit="post(this);" method="post">
+        <form id="postform" onsubmit="post(this); return false;" method="post">
             <textarea name="message" placeholder="Your message"></textarea><br>
             <input type="submit" value="Submit / refresh">
         </form>
     </div>
     <div id="feed" class="center"></div>
 
-    <div id="loginbutton" onclick="openlogin();">Log in</div>
+    <div id="loginbutton" onclick="openlogin(); return false;">Log in</div>
 
     <div id="login" class="center">
-        <form id="loginform" onsubmit="login(this);" method="post">
+        <form id="loginform" onsubmit="login(this); return false;" method="post">
             <input type="text" name="user" class="bmmargin" placeholder="Username"><br>
             <input type="password" class="tbmargin" name="pass" placeholder="Password"><br>
             <input type="submit" class="halfsize" value="Login">
@@ -27,7 +27,7 @@
     </div>
 
     <div id="register" class="center">
-        <form id="registerform" onsubmit="register(this);" method="post">
+        <form id="registerform" onsubmit="register(this); return false;" method="post">
             <input type="text" name="user" class="bmmargin" placeholder="Username"><br>
             <input type="text" name="email" class="bmmargin" placeholder="Email address"><br>
             <input type="password" class="bmmargin" name="pass" placeholder="Password"><br>

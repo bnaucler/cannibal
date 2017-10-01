@@ -1,4 +1,3 @@
-
 // Init
 checklogin();
 post(document.getElementById('postform'));
@@ -28,6 +27,22 @@ function printposts(xhr) {
     }
 }
 
+function trylogin(xhr) {
+
+    var feed = document.getElementById('feed');
+    var button = document.getElementById('loginbutton');
+    var obj = JSON.parse(xhr.responseText);
+
+    if(obj.Username) {
+        sessionStorage.cannibalname = obj.Username;
+        checklogin();
+        showpage("feed");
+
+    } else {
+        showpage("notloggedin");
+    }
+}
+
 function mkxhr(dest, params, rfunc) {
 
     var xhr = new XMLHttpRequest();
@@ -36,7 +51,9 @@ function mkxhr(dest, params, rfunc) {
     xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
 
     xhr.onreadystatechange = function() {
-        if(xhr.readyState == 4 && xhr.status == 200) rfunc(xhr);
+        if(xhr.readyState == 4 && xhr.status == 200) {
+            rfunc(xhr);
+        }
     }
 
     xhr.send(params);
@@ -46,6 +63,8 @@ function post(elem) {
 
     var user = sessionStorage.getItem("cannibalname");
     var message = elem.elements["message"].value;
+
+    elem.elements["message"].value = "";
 
     var params = "user=" + user + "&message=" + message;
     mkxhr("/post", params, printposts);
@@ -57,6 +76,7 @@ function login(elem) {
     var pass = elem.elements["pass"].value;
 
     var params = "user=" + user + "&pass=" + pass;
+
     mkxhr("/login", params, trylogin);
 }
 
@@ -67,20 +87,8 @@ function register(elem) {
     var email = elem.elements["email"].value;
 
     var params = "user=" + user + "&pass=" + pass + "&email=" + email;
+
     mkxhr("/register", params, trylogin);
-}
-
-function trylogin(xhr) {
-
-    showpage("feed");
-
-    var feed = document.getElementById('feed');
-    var button = document.getElementById('loginbutton');
-    var obj = JSON.parse(xhr.responseText);
-
-    if(obj.Username) {
-        sessionStorage.cannibalname = obj.Username;
-    }
 }
 
 function logout() {
@@ -128,10 +136,17 @@ function showpage(show) {
         login.style.display = "none";
         register.style.display = "block";
 
+    } else if(show == "notloggedin") {
+        feed.style.display = "block";
+        control.style.display = "none";
+        login.style.display = "none";
+        register.style.display = "none";
+
     } else {
         feed.style.display = "block";
         control.style.display = "block";
         login.style.display = "none";
+        register.style.display = "none";
     }
 }
 
