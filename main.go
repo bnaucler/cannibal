@@ -24,7 +24,13 @@ var sbuc = []byte("sbuc")       // settings bucket
 type Post struct {
     ID          int
     User        string
+    Skey        string
     Message     string
+}
+
+type Presp struct {
+    Posts       []Post
+    Skey        string
 }
 
 type User struct {
@@ -92,6 +98,16 @@ func wrsettings(db *bolt.DB, settings Settings) (error) {
     return e
 }
 
+// Write user to db
+func wruser(db *bolt.DB, user User) (error) {
+
+    muser, e := json.Marshal(user)
+    cherr(e)
+    e = wrdb(db, user.ID, []byte(muser), ubuc)
+
+    return e
+}
+
 // Return posts with IDs between min and max as struct
 func getposts(db *bolt.DB, min int, max int) ([]Post) {
 
@@ -120,38 +136,59 @@ func getminmax(id int) (min int, max int) {
 }
 
 // Write post to db
-func wrpost(r *http.Request, db *bolt.DB, settings Settings) (Settings) {
+func wrpost(db *bolt.DB, post Post, settings Settings) (Settings) {
 
-    e := r.ParseForm()
+    mpost, e := json.Marshal(post)
+    if e != nil { return settings }
+
+    e = wrdb(db, settings.Nextid, []byte(mpost), pbuc)
+    cherr(e)
+    settings.Nextid++;
+
+    e = wrsettings(db, settings)
     cherr(e)
 
-    post := Post{ID: settings.Nextid, User: r.FormValue("user"), Message: r.FormValue("message")}
-
-    if post.User != "" && post.Message != "" {
-
-        jsonpost, e := json.Marshal(post)
-        if e != nil { return settings }
-
-        e = wrdb(db, settings.Nextid, []byte(jsonpost), pbuc)
-        cherr(e)
-        settings.Nextid++;
-        e = wrsettings(db, settings)
-        cherr(e)
-    }
-
     return settings
+}
+
+func validateskey(user User, skey string) (bool) {
+
+    if user.Skey == skey { return true
+    } else { return false }
 }
 
 // Handle post requests
 func posthandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Settings) (Settings) {
 
-    settings = wrpost(r, db, settings)
+    resp := Presp{}
+
+    e := r.ParseForm()
+    cherr(e)
+
+    post := Post{ID: settings.Nextid,
+                 User: r.FormValue("user"),
+                 Message: r.FormValue("message"),
+                 Skey: r.FormValue("skey")}
+
+
+    user := getuser(db, post.User, settings.Nextuser)
+    resp.Skey = user.Skey
+
+    userval := validateskey(user, post.Skey)
+
+    if(post.Message != "" && userval) {
+        fmt.Printf("User %s posting: %s\n", user.Username, post.Message)
+        settings = wrpost(db, post, settings)
+
+    } else if(post.Message != "") {
+        resp.Skey = ""
+    }
 
     min, max := getminmax(settings.Nextid)
-    posts := getposts(db, min, max);
+    resp.Posts = getposts(db, min, max)
 
     enc := json.NewEncoder(w)
-    enc.Encode(posts)
+    enc.Encode(resp)
 
     return settings
 }
@@ -164,9 +201,7 @@ func getuser(db *bolt.DB, login string, maxid int) (User) {
         b, e := rdb(db, i, ubuc)
         cherr(e)
         json.Unmarshal(b, &user)
-        if user.Username == login {
-            return user
-        }
+        if user.Username == login { return user }
     }
 
     return User{}
@@ -203,29 +238,23 @@ func loginhandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings 
     if user.Username != "" {
 
         if validateuser(user, r.FormValue("pass")) {
-            user.Pass = []byte("hidden")
-            user.Skey = randstr(30) // TODO: Implement
+            fmt.Printf("User %s logged in successfully\n", user.Username)
+            user.Skey = randstr(30)
+            wruser(db, user);
+            user.Pass = []byte("")
 
         } else {
+            fmt.Printf("User validation failed for user %s\n", r.FormValue("user"))
             user = User{}
         }
 
     } else {
+        fmt.Printf("No username provided at login\n")
         user = User{}
     }
 
     enc := json.NewEncoder(w)
     enc.Encode(user)
-}
-
-// Write user to db
-func wruser(db *bolt.DB, user User) (error) {
-
-    muser, e := json.Marshal(user)
-    cherr(e)
-    e = wrdb(db, user.ID, []byte(muser), ubuc)
-
-    return e
 }
 
 // Handle registration requests
@@ -247,7 +276,10 @@ func reghandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings Se
         user = User{}
 
     } else {
+        fmt.Printf("User %s registred successfully\n", user.Username)
+        user.Skey = randstr(30)
         e = wruser(db, user)
+        user.Pass = []byte("")
         if e == nil { settings.Nextuser++ }
     }
 

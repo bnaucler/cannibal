@@ -1,24 +1,30 @@
 // Init
 checklogin();
-post(document.getElementById('postform'));
+getposts();
+
+var timer = setInterval(getposts, 10000);
 
 function printposts(xhr) {
 
     var obj = JSON.parse(xhr.responseText);
-    var olen = obj.length;
+    var olen = obj.Posts.length;
     var pdiv = document.getElementById('feed');
+    var user = sessionStorage.getItem("cannibalname");
+    var skey = sessionStorage.getItem("cannibalkey");
 
     pdiv.innerHTML = '';
 
-    for(var i = 0; i < obj.length; i++) {
+    if(user != "" && obj.Skey != skey) logout();
+
+    for(var i = 0; i < olen; i++) {
         var post = document.createElement('div');
         var name = document.createElement('h4');
         var message = document.createElement('p');
 
         post.className = "post";
 
-        name.appendChild(document.createTextNode(obj[i].User));
-        message.appendChild(document.createTextNode(obj[i].Message));
+        name.appendChild(document.createTextNode(obj.Posts[i].User));
+        message.appendChild(document.createTextNode(obj.Posts[i].Message));
 
         post.appendChild(name);
         post.appendChild(message);
@@ -35,6 +41,7 @@ function trylogin(xhr) {
 
     if(obj.Username) {
         sessionStorage.cannibalname = obj.Username;
+        sessionStorage.cannibalkey = obj.Skey;
         checklogin();
         showpage("feed");
 
@@ -59,14 +66,29 @@ function mkxhr(dest, params, rfunc) {
     xhr.send(params);
 }
 
+function getposts() {
+
+    var feedstat = getComputedStyle(document.getElementById('feed'), null).display;
+
+    if(feedstat == "block") {
+        var user = sessionStorage.getItem("cannibalname");
+        var skey = sessionStorage.getItem("cannibalkey");
+
+        var params = "user=" + user + "&skey=" +skey;
+        mkxhr("/post", params, printposts);
+    }
+
+}
+
 function post(elem) {
 
     var user = sessionStorage.getItem("cannibalname");
+    var skey = sessionStorage.getItem("cannibalkey");
     var message = elem.elements["message"].value;
 
-    elem.elements["message"].value = "";
+    var params = "user=" + user + "&message=" + message + "&skey=" + skey;
+    elem.reset();
 
-    var params = "user=" + user + "&message=" + message;
     mkxhr("/post", params, printposts);
 }
 
@@ -76,6 +98,7 @@ function login(elem) {
     var pass = elem.elements["pass"].value;
 
     var params = "user=" + user + "&pass=" + pass;
+    elem.reset();
 
     mkxhr("/login", params, trylogin);
 }
@@ -87,6 +110,7 @@ function register(elem) {
     var email = elem.elements["email"].value;
 
     var params = "user=" + user + "&pass=" + pass + "&email=" + email;
+    elem.reset();
 
     mkxhr("/register", params, trylogin);
 }
@@ -97,6 +121,7 @@ function logout() {
     var control = document.getElementById("control");
 
     sessionStorage.cannibalname = "";
+    sessionStorage.cannibalkey = "";
 
     loginbutton.onclick = openlogin;
     loginbutton.innerHTML = "Log in";
@@ -106,6 +131,7 @@ function logout() {
 function checklogin() {
 
     if(!sessionStorage.cannibalname) { sessionStorage.cannibalname = ""; }
+    if(!sessionStorage.cannibalkey) { sessionStorage.cannibalkey = ""; }
 
     var username = sessionStorage.getItem("cannibalname");
     var loginbutton = document.getElementById("loginbutton");
@@ -124,7 +150,6 @@ function showpage(show) {
     var control = document.getElementById('control');
     var register = document.getElementById('register');
     var login = document.getElementById('login');
-    var loginbutton = document.getElementById('loginbutton');
 
     if(show == "login") {
         feed.style.display = "none";
@@ -147,6 +172,7 @@ function showpage(show) {
         control.style.display = "block";
         login.style.display = "none";
         register.style.display = "none";
+        getposts();
     }
 }
 
