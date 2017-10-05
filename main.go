@@ -7,9 +7,9 @@ import (
     "strconv"
     "net/http"
     "math/rand"
-	"encoding/json"
+    "encoding/json"
 
-	"github.com/boltdb/bolt"
+    "github.com/boltdb/bolt"
     "golang.org/x/crypto/bcrypt"
 )
 
@@ -53,29 +53,29 @@ func cherr(e error) {
 // Write JSON encoded byte slice to DB
 func wrdb(db *bolt.DB, k int, v []byte, cbuc []byte) (e error) {
 
-	e = db.Update(func(tx *bolt.Tx) error {
-		b, e := tx.CreateBucketIfNotExists(cbuc)
-		if e != nil { return e }
+    e = db.Update(func(tx *bolt.Tx) error {
+        b, e := tx.CreateBucketIfNotExists(cbuc)
+        if e != nil { return e }
 
-		e = b.Put([]byte(strconv.Itoa(k)), v)
-		if e != nil { return e }
+        e = b.Put([]byte(strconv.Itoa(k)), v)
+        if e != nil { return e }
 
-		return nil
-	})
-	return
+        return nil
+    })
+    return
 }
 
 // Return JSON encoded byte slice from DB
 func rdb(db *bolt.DB, k int, cbuc []byte) (v []byte, e error) {
 
-	e = db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket(cbuc)
-		if b == nil { return fmt.Errorf("No bucket!") }
+    e = db.View(func(tx *bolt.Tx) error {
+        b := tx.Bucket(cbuc)
+        if b == nil { return fmt.Errorf("No bucket!") }
 
-		v = b.Get([]byte(strconv.Itoa(k)))
-		return nil
-	})
-	return
+        v = b.Get([]byte(strconv.Itoa(k)))
+        return nil
+    })
+    return
 }
 
 // Get settings from db
@@ -124,6 +124,7 @@ func getposts(db *bolt.DB, min int, max int) ([]Post) {
     return posts
 }
 
+// Get range of posts to display
 func getminmax(id int) (min int, max int) {
 
     min = id - NUMPOSTS
@@ -193,6 +194,7 @@ func posthandler(w http.ResponseWriter, r *http.Request, db *bolt.DB, settings S
     return settings
 }
 
+// Retrieve user based on name
 func getuser(db *bolt.DB, login string, maxid int) (User) {
 
     user := User{}
@@ -293,9 +295,9 @@ func main() {
 
     rand.Seed(time.Now().UnixNano())
 
-	db, e := bolt.Open(dbname, 0640, nil)
-	cherr(e)
-	defer db.Close()
+    db, e := bolt.Open(dbname, 0640, nil)
+    cherr(e)
+    defer db.Close()
 
     settings, e := getsettings(db)
 

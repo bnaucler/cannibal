@@ -4,6 +4,12 @@ getposts();
 
 var timer = setInterval(getposts, 10000);
 
+function vemail(email) {
+
+    var re = /\S+@\S+\.\S+/;
+    return re.test(email);
+}
+
 function printposts(xhr) {
 
     var obj = JSON.parse(xhr.responseText);
@@ -43,7 +49,6 @@ function trylogin(xhr) {
         sessionStorage.cannibalname = obj.Username;
         sessionStorage.cannibalkey = obj.Skey;
         checklogin();
-        showpage("feed");
 
     } else {
         showpage("notloggedin");
@@ -109,10 +114,16 @@ function register(elem) {
     var pass = elem.elements["pass"].value;
     var email = elem.elements["email"].value;
 
-    var params = "user=" + user + "&pass=" + pass + "&email=" + email;
-    elem.reset();
+    if(vemail(email)) {
+        var params = "user=" + user + "&pass=" + pass + "&email=" + email;
+        elem.reset();
 
-    mkxhr("/register", params, trylogin);
+        mkxhr("/register", params, trylogin);
+    
+    } else {
+        var mf = elem.elements["email"];
+        mf.style.backgroundColor = "#fdd";
+    }
 }
 
 function logout() {
@@ -128,20 +139,16 @@ function logout() {
     control.style.display = "none";
 }
 
+// TODO: Server verification of key
 function checklogin() {
 
     if(!sessionStorage.cannibalname) { sessionStorage.cannibalname = ""; }
     if(!sessionStorage.cannibalkey) { sessionStorage.cannibalkey = ""; }
 
     var username = sessionStorage.getItem("cannibalname");
-    var loginbutton = document.getElementById("loginbutton");
-    var control = document.getElementById("control");
+    var skey = sessionStorage.getItem("cannibalkey");
 
-    if(username != "") {
-        loginbutton.innerHTML = username;
-        loginbutton.onclick = logout;
-        control.style.display = "block";
-    }
+    if(username != "" && skey != "") showpage("feed");
 }
 
 function showpage(show) {
@@ -149,7 +156,11 @@ function showpage(show) {
     var feed = document.getElementById('feed');
     var control = document.getElementById('control');
     var register = document.getElementById('register');
+    var regform = document.getElementById("registerform");
     var login = document.getElementById('login');
+    var loginbutton = document.getElementById("loginbutton");
+
+    var username = sessionStorage.getItem("cannibalname");
 
     if(show == "login") {
         feed.style.display = "none";
@@ -157,6 +168,7 @@ function showpage(show) {
         login.style.display = "block";
 
     } else if(show == "register") {
+        regform.elements["email"].style.backgroundColor = "#fff";
         control.style.display = "none";
         login.style.display = "none";
         register.style.display = "block";
@@ -168,6 +180,8 @@ function showpage(show) {
         register.style.display = "none";
 
     } else {
+        loginbutton.innerHTML = username;
+        loginbutton.onclick = logout;
         feed.style.display = "block";
         control.style.display = "block";
         login.style.display = "none";
