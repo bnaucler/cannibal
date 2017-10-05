@@ -51,7 +51,7 @@ function trylogin(xhr) {
         checklogin();
 
     } else {
-        showpage("notloggedin");
+        showpage("base");
     }
 }
 
@@ -134,9 +134,7 @@ function logout() {
     sessionStorage.cannibalname = "";
     sessionStorage.cannibalkey = "";
 
-    loginbutton.onclick = openlogin;
-    loginbutton.innerHTML = "Log in";
-    control.style.display = "none";
+    showpage("base");
 }
 
 // TODO: Server verification of key
@@ -149,6 +147,7 @@ function checklogin() {
     var skey = sessionStorage.getItem("cannibalkey");
 
     if(username != "" && skey != "") showpage("feed");
+    else showpage("base");
 }
 
 function showpage(show) {
@@ -163,17 +162,26 @@ function showpage(show) {
     var username = sessionStorage.getItem("cannibalname");
 
     if(show == "login") {
+        loginbutton.innerHTML = "Cancel";
+        loginbutton.onclick = logout;
+
         feed.style.display = "none";
         control.style.display = "none";
         login.style.display = "block";
 
     } else if(show == "register") {
+        loginbutton.innerHTML = "Cancel";
+        loginbutton.onclick = logout;
+
         regform.elements["email"].style.backgroundColor = "#fff";
         control.style.display = "none";
         login.style.display = "none";
         register.style.display = "block";
 
-    } else if(show == "notloggedin") {
+    } else if(show == "base") {
+        loginbutton.innerHTML = "Log in";
+        loginbutton.onclick = openlogin;
+
         feed.style.display = "block";
         control.style.display = "none";
         login.style.display = "none";
@@ -182,6 +190,7 @@ function showpage(show) {
     } else {
         loginbutton.innerHTML = username;
         loginbutton.onclick = logout;
+
         feed.style.display = "block";
         control.style.display = "block";
         login.style.display = "none";
