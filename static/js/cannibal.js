@@ -1,7 +1,11 @@
+// Alias to reduce typing
+var gid = document.getElementById.bind(document);
+
 // Init
 checklogin();
 getposts();
 
+// Update feed every 10 seconds
 var timer = setInterval(getposts, 10000);
 
 function vemail(email) {
@@ -14,7 +18,7 @@ function printposts(xhr) {
 
     var obj = JSON.parse(xhr.responseText);
     var olen = obj.Posts.length;
-    var pdiv = document.getElementById('feed');
+    var pdiv = gid('feed');
     var user = sessionStorage.getItem("cannibalname");
     var skey = sessionStorage.getItem("cannibalkey");
 
@@ -41,8 +45,8 @@ function printposts(xhr) {
 
 function trylogin(xhr) {
 
-    var feed = document.getElementById('feed');
-    var button = document.getElementById('loginbutton');
+    var feed = gid('feed');
+    var button = gid('mbutton');
     var obj = JSON.parse(xhr.responseText);
 
     if(obj.Username) {
@@ -73,7 +77,7 @@ function mkxhr(dest, params, rfunc) {
 
 function getposts() {
 
-    var feedstat = getComputedStyle(document.getElementById('feed'), null).display;
+    var feedstat = getComputedStyle(gid('feed'), null).display;
 
     if(feedstat == "block") {
         var user = sessionStorage.getItem("cannibalname");
@@ -119,7 +123,7 @@ function register(elem) {
         elem.reset();
 
         mkxhr("/register", params, trylogin);
-    
+
     } else {
         var mf = elem.elements["email"];
         mf.style.backgroundColor = "#fdd";
@@ -128,16 +132,12 @@ function register(elem) {
 
 function logout() {
 
-    var loginbutton = document.getElementById("loginbutton");
-    var control = document.getElementById("control");
-
     sessionStorage.cannibalname = "";
     sessionStorage.cannibalkey = "";
 
     showpage("base");
 }
 
-// TODO: Server verification of key
 function checklogin() {
 
     if(!sessionStorage.cannibalname) { sessionStorage.cannibalname = ""; }
@@ -150,51 +150,48 @@ function checklogin() {
     else showpage("base");
 }
 
+function setmbutton(text, func) {
+
+    var mbutton = gid("mbutton");
+
+    mbutton.innerHTML = text;
+    mbutton.onclick = func;
+}
+
+function setdisp(elem, pages) {
+
+    for(var pg in elem) {
+        elem[pg].style.display = pages.indexOf(pg) > -1 ? "block" : "none";
+    }
+}
+
 function showpage(show) {
 
-    var feed = document.getElementById('feed');
-    var control = document.getElementById('control');
-    var register = document.getElementById('register');
-    var regform = document.getElementById("registerform");
-    var login = document.getElementById('login');
-    var loginbutton = document.getElementById("loginbutton");
+    var elem = {feed: gid('feed'),
+                control: gid('control'),
+                register: gid('register'),
+                login: gid('login')
+               };
 
     var username = sessionStorage.getItem("cannibalname");
 
     if(show == "login") {
-        loginbutton.innerHTML = "Cancel";
-        loginbutton.onclick = logout;
-
-        feed.style.display = "none";
-        control.style.display = "none";
-        login.style.display = "block";
+        setmbutton("Cancel", logout);
+        setdisp(elem, ["login"]);
 
     } else if(show == "register") {
-        loginbutton.innerHTML = "Cancel";
-        loginbutton.onclick = logout;
-
-        regform.elements["email"].style.backgroundColor = "#fff";
-        control.style.display = "none";
-        login.style.display = "none";
-        register.style.display = "block";
+        gid("registerform").elements["email"].style.backgroundColor = "#fff"; // TODO
+        setmbutton("Cancel", logout);
+        setdisp(elem, ["register"]);
 
     } else if(show == "base") {
-        loginbutton.innerHTML = "Log in";
-        loginbutton.onclick = openlogin;
-
-        feed.style.display = "block";
-        control.style.display = "none";
-        login.style.display = "none";
-        register.style.display = "none";
+        setmbutton("Log in", openlogin);
+        setdisp(elem, ["feed"]);
 
     } else {
-        loginbutton.innerHTML = username;
-        loginbutton.onclick = logout;
+        setmbutton(username, logout);
+        setdisp(elem, ["control", "feed"]);
 
-        feed.style.display = "block";
-        control.style.display = "block";
-        login.style.display = "none";
-        register.style.display = "none";
         getposts();
     }
 }
